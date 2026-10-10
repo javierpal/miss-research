@@ -1,0 +1,33 @@
+services:
+  searxng:
+    image: searxng/searxng:latest
+    restart: unless-stopped
+    networks: [research_internal]
+    volumes:
+      - ./searxng:/etc/searxng:ro
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080/
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on: [searxng]
+    networks: [research_internal]
+    ports:
+      - "3210:3000"
+    environment:
+      PORT: "3000"
+      DATA_DIR: /var/lib/miss-research
+      SEARXNG_URL: http://searxng:8080
+      MAX_EXTERNAL_CONCURRENCY: "2"
+      FETCH_MAX_BYTES: "1500000"
+      FETCH_TIMEOUT_MS: "12000"
+    volumes:
+      - research_data:/var/lib/miss-research
+
+networks:
+  research_internal:
+    driver: bridge
+
+volumes:
+  research_data:
