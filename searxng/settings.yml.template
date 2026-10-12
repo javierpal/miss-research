@@ -11,3 +11,17 @@ server:
   limiter: false
   image_proxy: false
   secret_key: "REPLACE_ON_DEPLOY"
+engines:
+  # The host IP is currently challenged by these providers. Keep the
+  # independently verified engines enabled so an outage cannot yield a
+  # successful-but-empty aggregate response.
+  - name: bing
+    disabled: false
+  - name: yahoo
+    disabled: false
+  - name: brave
+    disabled: true
+  - name: duckduckgo
+    disabled: true
+  - name: google cse
+    disabled: true

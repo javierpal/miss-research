@@ -86,12 +86,24 @@ class ResearchService {
         const response = await fetch(url, { signal: AbortSignal.timeout(this.timeoutMs) });
         if (response.status === 429) { this.pausedUntil = Date.now() + 60_000; throw new Error('upstream HTTP 429'); }
         if (!response.ok) throw new Error(`upstream HTTP ${response.status}`);
-        const json = await response.json() as { results?: Array<Record<string, unknown>> };
-        return { query, results: (json.results || []).map(r => ({ title: r.title, url: r.url, content: r.content, engine: r.engine })), meta: { cacheHit: false, externalSearches: budget.searches + 1, evidenceType: 'search-snippet' } };
+        const json = await response.json() as { results?: Array<Record<string, unknown>>; unresponsive_engines?: unknown[] };
+        const results = (json.results || []).map(r => ({ title: r.title, url: r.url, content: r.content, engine: r.engine }));
+        if (results.length === 0 && (json.unresponsive_engines || []).length > 0) {
+          throw new HttpException('search upstream failure: all configured search engines were unresponsive', HttpStatus.SERVICE_UNAVAILABLE);
+        }
+        return { query, results, meta: { cacheHit: false, externalSearches: budget.searches + 1, evidenceType: 'search-snippet' } };
       });
       this.db.prepare('UPDATE budgets SET external_searches=external_searches+1, locked=CASE WHEN external_searches+1>=3 THEN 1 ELSE 0 END WHERE batch_id=? AND queue_item_id=?').run(input.batchId, input.queueItemId);
-      this.attempt(input.batchId, input.queueItemId, 'search', 'ok', query); this.cache(cacheKey, 'search', result); return result;
-    } catch (e) { const message = e instanceof Error ? e.message : 'unknown'; this.attempt(input.batchId, input.queueItemId, 'search', 'error', query, undefined, message); throw new HttpException(message, 502); }
+      this.attempt(input.batchId, input.queueItemId, 'search', 'ok', query);
+      // Do not permanently poison the shared query cache during an upstream outage or for a true no-result query.
+      if (result.results.length > 0) this.cache(cacheKey, 'search', result);
+      return result;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'unknown';
+      this.attempt(input.batchId, input.queueItemId, 'search', 'error', query, undefined, message);
+      if (e instanceof HttpException) throw e;
+      throw new HttpException(message, 502);
+    }
   }
   private async isPublic(url: URL) {
     const host = url.hostname.toLowerCase();
