@@ -19,7 +19,11 @@ services:
       PORT: "3000"
       DATA_DIR: /var/lib/miss-research
       SEARXNG_URL: http://searxng:8080
-      MAX_EXTERNAL_CONCURRENCY: "2"
+      # Search traffic is paced globally by the API; keep fetch concurrency at one.
+      MAX_EXTERNAL_CONCURRENCY: "1"
+      SEARCH_MIN_INTERVAL_MS: "2500"
+      SEARCH_JITTER_MS: "1500"
+      CANONICAL_RESEARCH_BATCH: "miss-catalog-builder"
       FETCH_MAX_BYTES: "1500000"
       FETCH_TIMEOUT_MS: "12000"
     volumes:

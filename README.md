@@ -85,6 +85,14 @@ No se permiten destinos privados o locales. Cada fetch conserva URL final, hora 
 - `502`: fallo de transporte o respuesta no válida de un upstream/fetch.
 - Los snippets de búsqueda son pistas, no evidencia calificante. Hay que llamar a `fetch` y evaluar el contenido antes de registrar un dato de catálogo.
 
+## Pacing, rutas y circuit breakers
+
+Las búsquedas externas se serializan globalmente (`MAX_EXTERNAL_CONCURRENCY=1`): entre intentos reales se aplica un mínimo de `SEARCH_MIN_INTERVAL_MS=2500` y jitter aleatorio de hasta `SEARCH_JITTER_MS=1500`. Los cache hits y motores omitidos por circuito abierto no esperan ni consumen presupuesto.
+
+Cada búsqueda usa Bing primero y Yahoo sólo como fallback; nunca se consultan en paralelo. El estado de cada motor se persiste en SQLite y puede consultarse sin generar tráfico en `GET /health/search`. Tras tres fallos relevantes (429, CAPTCHA, timeout o error upstream), el circuito abre. El cooldown crece de 30 min a un máximo de 12 h; la primera prueba posterior es HALF_OPEN y sólo un intento controlado puede cerrarlo de nuevo.
+
+El presupuesto usa `CANONICAL_RESEARCH_BATCH` junto con `queueItemId`, no el `batchId` que envía el cliente. Por tanto cambiar arbitrariamente `batchId` no reinicia el límite. Cada intento real contra un motor consume presupuesto incluso si falla; los fallos de circuito abierto y cache hits no lo consumen.
+
 ## Motores de búsqueda
 
 La plantilla prioriza Bing y Yahoo, que se validaron desde la VM. Brave, DuckDuckGo y Google CSE se dejan deshabilitados porque el host recibió CAPTCHA o rate limits de esos proveedores. Antes de habilitar un motor, pruébalo desde el contenedor SearXNG y vigila sus logs:
