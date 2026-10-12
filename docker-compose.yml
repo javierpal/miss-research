@@ -23,7 +23,9 @@ services:
       MAX_EXTERNAL_CONCURRENCY: "1"
       SEARCH_MIN_INTERVAL_MS: "2500"
       SEARCH_JITTER_MS: "1500"
-      CANONICAL_RESEARCH_BATCH: "miss-catalog-builder"
+      # Set this explicitly to the approved research batch before enabling research.
+      # The safe default prevents accidental cross-batch budget sharing.
+      CANONICAL_RESEARCH_BATCH: "research-batch-unassigned"
       FETCH_MAX_BYTES: "1500000"
       FETCH_TIMEOUT_MS: "12000"
     volumes:

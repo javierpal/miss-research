@@ -91,7 +91,7 @@ Las búsquedas externas se serializan globalmente (`MAX_EXTERNAL_CONCURRENCY=1`)
 
 Cada búsqueda usa Bing primero y Yahoo sólo como fallback; nunca se consultan en paralelo. El estado de cada motor se persiste en SQLite y puede consultarse sin generar tráfico en `GET /health/search`. Tras tres fallos relevantes (429, CAPTCHA, timeout o error upstream), el circuito abre. El cooldown crece de 30 min a un máximo de 12 h; la primera prueba posterior es HALF_OPEN y sólo un intento controlado puede cerrarlo de nuevo.
 
-El presupuesto usa `CANONICAL_RESEARCH_BATCH` junto con `queueItemId`, no el `batchId` que envía el cliente. Por tanto cambiar arbitrariamente `batchId` no reinicia el límite. Cada intento real contra un motor consume presupuesto incluso si falla; los fallos de circuito abierto y cache hits no lo consumen.
+El presupuesto usa `CANONICAL_RESEARCH_BATCH` junto con `queueItemId`, no el `batchId` que envía el cliente. Debe configurarse en el servidor con el batch canónico aprobado (por ejemplo `research-batch-0003`) antes de habilitar investigación; el valor seguro `research-batch-unassigned` rechaza búsquedas. Al cambiar al siguiente batch autorizado, se cambia esta configuración y se reinicia el API: así cada batch legítimo tiene su propio presupuesto sin permitir namespaces arbitrarios del cliente. Cada intento real contra un motor consume presupuesto incluso si falla; los fallos de circuito abierto y cache hits no lo consumen.
 
 ## Motores de búsqueda
 
